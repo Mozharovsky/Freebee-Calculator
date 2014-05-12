@@ -30,6 +30,7 @@ public class Body {
     }
 
     private void findComplexNumbers() {
+        int spe_start = -1; // The index of '=' mark
         boolean isTouched = false;
         String result = "";
 
@@ -48,8 +49,17 @@ public class Body {
                     }
                 }
 
+                if(i > spe_start && spe_start != -1) {
+                    result = "-" + result;
+                }
+
                 isTouched = true;
             } else {
+                // Check for the second expression part (after '=' mark)
+                if(str.charAt(i) == '=') {
+                    spe_start = i;
+                }
+
                 if(result != "^2" && result != "" && result != null) {
                     nums.add((result));
                 }
@@ -96,6 +106,7 @@ public class Body {
     }
 
     private void findSimpleNUmbers() {
+        int spe_start = -1; // The index of '=' mark
         boolean isTouched = false;
 
         for(int i = 0; i < str.length(); i++) {
@@ -105,22 +116,56 @@ public class Body {
 
                     if((i + 2) < str.length() && Character.isLetter(str.charAt(i + 1)) && str.charAt(i + 2) != '^' || (i + 2) >= str.length() && Character.isLetter(str.charAt(i + 1))) {
                         nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1))));
+
+                        if(i > spe_start && spe_start != -1) {
+                            nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))))));
+                        }
                     } else if((i + 3) < str.length() && str.charAt(i + 2) == '^' && str.charAt(i + 3) == '2') {
                         nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3))));
+
+                        if(i > spe_start && spe_start != -1) {
+                            nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))))));
+                        }
+
+                        System.out.println(nums);
+                    } else {
+                        if(i > spe_start && spe_start != -1) {
+                            nums.set(nums.indexOf((Character.toString(str.charAt(i)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)))))));
+                        }
                     }
 
                     isTouched = true;
                 }
             } else if((i + 1) >= str.length() && (i - 1) >= 0 && str.charAt(i - 1) == ' ' && Character.isDigit(str.charAt(i))) {
-                nums.add((Character.toString(str.charAt(i))));
-
                 if((i + 2) < str.length() && Character.isLetter(str.charAt(i + 1)) && (i + 2) >= str.length()) {
                     nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1))));
+
+                    if(i > spe_start && spe_start != -1) {
+                        nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))))));
+                    }
                 } else if((i + 3) < str.length() && str.charAt(i + 2) == '^' && str.charAt(i + 3) == '2') {
                     nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3))));
+
+                    if(i > spe_start && spe_start != -1) {
+                        nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))))));
+                    }
+                }
+                /**
+                 * May be BUGGY !!!
+                 */
+                else {
+                    nums.add(Character.toString(str.charAt(i)));
+
+                    if(i > spe_start && spe_start != -1) {
+                        nums.set(nums.indexOf((Character.toString(str.charAt(i)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)))))));
+                    }
                 }
 
                 isTouched = true;
+            } else {
+                if(str.charAt(i) == '=') {
+                    spe_start = i;
+                }
             }
         }
 
@@ -311,15 +356,25 @@ public class Body {
 
     private void prepareUnknownMems() {
         ArrayList<String> copy = new ArrayList<String>();
+        ArrayList<Integer> indexesToRemove = new ArrayList<Integer>();
+
         copy.addAll(quadraticMems);
 
         for(int i = 0; i < unknownMems.size(); i++) {
             for(int j = 0; j < copy.size(); j++) {
                 if(unknownMems.get(i).equals(copy.get(j))) {
-                    unknownMems.remove(copy.get(j));
-                    copy.remove(copy.get(j));
+                    indexesToRemove.add(i);
                 }
             }
         }
+
+        for(int i = (indexesToRemove.size() - 1); i >= 0; i--) {
+            if(indexesToRemove.get(i) < unknownMems.size()) {
+                unknownMems.remove(unknownMems.get(indexesToRemove.get(i)));
+            }
+        }
+
+        copy = null;
+        indexesToRemove = null;
     }
 }

@@ -8,7 +8,7 @@ import com.main.java.calculator.Model.QuadraticEquation;
  */
 public class Main {
     public static void main(String[] args) {
-        String s = "5x^2 + 4x + 5";
+        String s = "56x^2 + 6x + 5 = 8x + 54x^2 + 4";
         QuadraticEquation one = new QuadraticEquation(s);
 
         one.printLists();
