@@ -19,11 +19,16 @@ public abstract class Equation {
         this.type = type;
     }
 
+    public Body getBody() { return body; }
+
     public void printLists() {
         if(!body.getKnownMems().isEmpty())
             System.out.printf("[Known mems]: %s.%n", body.getKnownMems());
 
         if(!body.getUnknownMems().isEmpty())
             System.out.printf("[Unknown mems]: %s.%n", body.getUnknownMems());
+
+        if(!body.getQuadraticMems().isEmpty())
+            System.out.printf("[Quadratic mems]: %s.%n", body.getQuadraticMems());
     }
 }

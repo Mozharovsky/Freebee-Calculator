@@ -20,6 +20,8 @@ public class Body {
         return unknownMems;
     }
 
+    public ArrayList<String> getQuadraticMems() { return quadraticMems; }
+
     public Body(String str) {
         this.str = str;
 
@@ -330,8 +332,8 @@ public class Body {
                     unknownMems.add(Integer.toString(result) + commonChar);
                 }
 
-                unknownMems.addAll(quadraticMems);
-                quadraticMems.clear();
+                //unknownMems.addAll(quadraticMems);
+                //quadraticMems.clear();
             } else {
                 System.out.println("Failed to load unknown mems ...");
             }
