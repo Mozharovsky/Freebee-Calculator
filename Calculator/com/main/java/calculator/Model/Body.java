@@ -1,5 +1,6 @@
 package com.main.java.calculator.Model;
 
+import sun.util.locale.StringTokenIterator;
 import java.util.ArrayList;
 
 /**
@@ -25,10 +26,12 @@ public class Body {
     public Body(String str) {
         this.str = str;
 
+        prepareString();
         findSimpleNUmbers();
         findComplexNumbers();
 
         optimize();
+        separateQuadraticMems();
     }
 
     private void findComplexNumbers() {
@@ -301,7 +304,6 @@ public class Body {
                 }
             }
 
-            // FIXME: unknown optimizing
             if(status) {
                 for(int i = 0; i < unknownMems.size(); i++) {
                     for(int j = 0; j < unknownMems.get(i).length(); j++) {
@@ -378,5 +380,33 @@ public class Body {
 
         copy = null;
         indexesToRemove = null;
+    }
+
+    private void separateQuadraticMems() {
+        if(!unknownMems.isEmpty()) {
+            for(String element : unknownMems) {
+                if(element.contains("^2")) {
+                    quadraticMems.add(element);
+                }
+            }
+
+            unknownMems.removeAll(quadraticMems);
+        }
+    }
+
+    private void prepareString() {
+        final StringTokenIterator iterator = new StringTokenIterator(str, " ");
+
+        while(iterator.hasNext() || iterator.currentEnd() == str.length()) {
+            if(!Character.isDigit(iterator.current().charAt(0)) && Character.isAlphabetic(iterator.current().charAt(0))) {
+                str = str.replace(str.subSequence(iterator.currentStart(), iterator.currentEnd()), "1" + str.subSequence(iterator.currentStart(), iterator.currentEnd()));
+            }
+
+            if(iterator.currentEnd() == str.length()) {
+                break;
+            }
+
+            iterator.setStart(iterator.currentEnd() + 1);
+        }
     }
 }
