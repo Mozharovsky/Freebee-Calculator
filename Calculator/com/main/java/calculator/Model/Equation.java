@@ -22,13 +22,13 @@ public abstract class Equation {
     public Body getBody() { return body; }
 
     public void printLists() {
-        if(!body.getKnownMems().isEmpty())
-            System.out.printf("[Known mems]: %s.%n", body.getKnownMems());
+        if(!body.getQ_tokens().isEmpty())
+            System.out.printf("[Quadratic mems]: %s.%n", body.getQ_tokens());
 
-        if(!body.getUnknownMems().isEmpty())
-            System.out.printf("[Unknown mems]: %s.%n", body.getUnknownMems());
+        if(!body.getU_tokens().isEmpty())
+            System.out.printf("[Unknown mems]: %s.%n", body.getU_tokens());
 
-        if(!body.getQuadraticMems().isEmpty())
-            System.out.printf("[Quadratic mems]: %s.%n", body.getQuadraticMems());
+        if(!body.getK_tokens().isEmpty())
+            System.out.printf("[Known mems]: %s.%n", body.getK_tokens());
     }
 }

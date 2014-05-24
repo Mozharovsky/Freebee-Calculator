@@ -2,411 +2,279 @@ package com.main.java.calculator.Model;
 
 import sun.util.locale.StringTokenIterator;
 import java.util.ArrayList;
+import java.util.StringTokenizer;
 
 /**
- * Created by E. Mozharovsky on 07.05.14.
+ * Created by E. Mozharovsky on 24.05.14.
  */
 public class Body {
-    private String str = null;
-    private ArrayList<String> nums = new ArrayList<String>();
-    private ArrayList<String> quadraticMems = new ArrayList<String>();
-    private ArrayList<String> unknownMems = new ArrayList<String>();
-    private ArrayList<Integer> knownMems = new ArrayList<Integer>();
-
-    public ArrayList<Integer> getKnownMems() {
-        return knownMems;
-    }
-
-    public ArrayList<String> getUnknownMems() {
-        return unknownMems;
-    }
-
-    public ArrayList<String> getQuadraticMems() { return quadraticMems; }
+    private ArrayList<String> q_tokens; // quadratic_tokens
+    private ArrayList<String> u_tokens; // unknown_tokens
+    private ArrayList<String> k_tokens; // known_tokens
+    private char common; // the common unknown char
 
     public Body(String str) {
-        this.str = str;
+        q_tokens = new ArrayList<String>();
+        u_tokens = new ArrayList<String>();
+        k_tokens = new ArrayList<String>();
 
-        prepareString();
-        findSimpleNUmbers();
-        findComplexNumbers();
-
+        sortTokens(str);
         optimize();
-        separateQuadraticMems();
     }
 
-    private void findComplexNumbers() {
-        int spe_start = -1; // The index of '=' mark
-        boolean isTouched = false;
-        String result = "";
+    public ArrayList<String> getQ_tokens() {
+        return q_tokens;
+    }
 
-        for(int i = 0; i < str.length(); i++) {
-            if((i + 1) < str.length() && Character.isDigit(str.charAt(i)) && Character.isDigit(str.charAt(i + 1))) {
-                result += Integer.parseInt(Character.toString(str.charAt(i)));
-                isTouched = true;
-            } else if((i - 1) >= 0 && Character.isDigit(str.charAt(i)) && Character.isDigit(str.charAt(i - 1))) {
-                result += Integer.parseInt(Character.toString(str.charAt(i)));
+    public ArrayList<String> getU_tokens() {
+        return u_tokens;
+    }
 
-                if((i + 1) < str.length() && Character.isLetter(str.charAt(i + 1))) {
-                    result += Character.toString(str.charAt(i + 1));
+    public ArrayList<String> getK_tokens() {
+        return k_tokens;
+    }
 
-                    if((i + 3) < str.length() && str.charAt(i + 2) == '^' && str.charAt(i + 3) == '2') {
-                        result += Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3));
+    /**
+     * A global optimization.
+     */
+    private void optimize() {
+        optimizeQuadraticTokens();
+        optimizeUnknownTokens();
+        optimizeKnownTokens();
+    }
+
+    private void optimizeQuadraticTokens() {
+        if(q_tokens.size() > 1) {
+            ArrayList<Integer> coefficients = new ArrayList<Integer>();
+
+            for(String token : q_tokens) {
+                for(int j = 0; j < token.length(); j++) {
+                    if(token.charAt(j) == common && j != 0 && (j - 1) >= 0 && Character.isDigit(token.charAt(j - 1))) {
+                        coefficients.add(Integer.parseInt(token.substring(0, j)));
+                    } else if((j - 1) >= 0 && !Character.isDigit(token.charAt(j - 1)) && token.charAt(j) == common) {
+                        coefficients.add(-1);
+                    } else if((j - 1) < 0 && token.charAt(j) == common) {
+                        coefficients.add(1);
+                    }
+                }
+            }
+
+            int result = 0;
+            for(int i = 0; i < coefficients.size(); i++) {
+                result += coefficients.get(i);
+            }
+
+            // clean the space in memory
+            coefficients = null;
+            q_tokens.clear();
+
+            // add the final result to the q_tokens list
+            q_tokens.add(Integer.toString(result) + Character.toString(common) + "^2");
+        }
+    }
+
+    private void optimizeUnknownTokens() {
+        if(u_tokens.size() > 1) {
+            ArrayList<Integer> coefficients = new ArrayList<Integer>();
+
+            for(String token : u_tokens) {
+                for(int j = 0; j < token.length(); j++) {
+                    if(token.charAt(j) == common && j != 0 && (j - 1) >= 0 && Character.isDigit(token.charAt(j - 1))) {
+                        coefficients.add(Integer.parseInt(token.substring(0, j)));
+                    } else if((j - 1) >= 0 && !Character.isDigit(token.charAt(j - 1)) && token.charAt(j) == common) {
+                        coefficients.add(-1);
+                    } else if((j - 1) < 0 && token.charAt(j) == common) {
+                        coefficients.add(1);
+                    }
+                }
+            }
+
+            int result = 0;
+            for(int i = 0; i < coefficients.size(); i++) {
+                result += coefficients.get(i);
+            }
+
+            // clean the space in memory
+            coefficients = null;
+            u_tokens.clear();
+
+            // add the final result to the q_tokens list
+            u_tokens.add(Integer.toString(result) + Character.toString(common));
+        }
+    }
+
+    private void optimizeKnownTokens() {
+        if(k_tokens.size() > 1) {
+            int result = 0;
+            for(String token : k_tokens) {
+                result += Integer.parseInt(token);
+            }
+
+            // clean the space in memory
+            k_tokens.clear();
+
+            // add the final result to the q_tokens list
+            k_tokens.add(Integer.toString(result));
+        }
+    }
+
+    /**
+     * Analyzes the given string and finds all the tokens sorting them by:
+     * quadratic (q_tokens) / unknown (u_tokens) / known (k_tokens).
+     * @param str
+     *        The source string line we sort tokens from.
+     */
+    private void sortTokens(String str) {
+        ArrayList<String> tokens = new ArrayList<String>();
+
+        if(!str.equals(null)) {
+            StringTokenIterator tokenIterator = new StringTokenIterator(str, " ");
+            boolean isAfterEqualMark = false;
+
+            while(tokenIterator.hasNext() || tokenIterator.currentEnd() == (str.length() - 1)) {
+                String currentToken = tokenIterator.current();
+
+                if (!currentToken.equals("+") && !currentToken.equals("-") && !currentToken.equals("") && !currentToken.equals("=") && !isAfterEqualMark) {
+                    // adds, basically, the first token which doesn't have a sign-mark
+                    tokens.add(currentToken);
+                } else if (currentToken.equals("+") && !isAfterEqualMark) {
+                    // finds a positive sign-mark and adds the next token as a positive one
+                    tokens.add(tokenIterator.next());
+                } else if (currentToken.equals("-") && !isAfterEqualMark) {
+                    // finds a negative sign-mark and adds the next token as a negative one
+                    tokens.add("-" + tokenIterator.next());
+                } else if (currentToken.equals("=")) {
+                    // handles all the tokens after equal-mark ("=")
+                    isAfterEqualMark = true; /** the status of being there, so these tokens won't be handled further */
+
+                    StringTokenizer tokenizer = new StringTokenizer(str.substring(str.indexOf(currentToken) + 1));
+                    String first = tokenizer.nextToken(); /** else if there is no sign-mark we should throw an exception */
+                    tokenizer = new StringTokenizer(str.substring(str.indexOf(currentToken) + 1)); /** updates the current element */
+
+                    // identify a sign-mark of the current token and adds this token depending on the sign-mark (except for the first token)
+                    while (tokenizer.hasMoreTokens()) {
+                        String current = tokenizer.nextToken();
+                        if (current.equals(first) && !first.equals("+") && !first.equals("-") && !first.equals("")) {
+                            tokens.add("-" + current);
+                        } else if (current.equals("+")) {
+                            tokens.add("-" + tokenizer.nextToken());
+                        } else if (current.equals("-")) {
+                            tokens.add(tokenizer.nextToken());
+                        }
                     }
                 }
 
-                if(i > spe_start && spe_start != -1) {
-                    result = "-" + result;
+                // if the current element is the last token
+                if (tokenIterator.currentEnd() == str.length()) {
+                    break;
                 }
 
-                isTouched = true;
+                // sets the next token's start position
+                tokenIterator.setStart(tokenIterator.currentEnd() + 1);
+            }
+
+            // not necessary to keep this object in memory
+            tokenIterator = null;
+
+            // sorting process
+            for(String token : tokens) {
+                if(token.contains("^2")) {
+                    q_tokens.add(token);
+                } else if(hasLetter(token)) {
+                    u_tokens.add(token);
+                } else if(isNumber(token)) {
+                    k_tokens.add(token);
+                } else {
+
+                }
+            }
+
+            // clean the space in memory
+            tokens.removeAll(k_tokens);
+
+            if(isCommonUnknownCharMatched(tokens)) {
+                // that's processed only if all the unknown tokens have the same common unknown char
+                tokens.removeAll(q_tokens);
+                tokens.removeAll(u_tokens);
             } else {
-                // Check for the second expression part (after '=' mark)
-                if(str.charAt(i) == '=') {
-                    spe_start = i;
-                }
-
-                if(result != "^2" && result != "" && result != null) {
-                    nums.add((result));
-                }
-
-                result = "";
+                // TODO: Throw CommonUnknownCharIsNotMatched Exception
             }
 
-            if((i + 1) >= str.length()) {
-                if(result != "" && result != null) {
-                    nums.add((result));
-                }
-            }
-        }
-
-        for(String element : nums) {
-            for(int i = 0; i < element.length(); i++) {
-                if(Character.isLetter(element.charAt(i))) {
-                    unknownMems.add(element);
-                }
-            }
-        }
-
-        nums.removeAll(unknownMems);
-
-        for(String element : nums) {
-            knownMems.add(Integer.parseInt(element));
-        }
-
-        if(isTouched) {
-            for(int i = 0; i < unknownMems.size(); i++) {
-                if(isNegative(unknownMems.get(i))) {
-                    unknownMems.set(i, ("-" + unknownMems.get(i)));
-                }
-            }
-
-            for(int i = 0; i < knownMems.size(); i++) {
-                if(isNegative(Integer.toString(knownMems.get(i)))) {
-                    knownMems.set(i, (-1) * knownMems.get(i));
-                }
-            }
-
-            nums.clear();
+            // should be empty in any way
+            if(tokens.isEmpty())
+                tokens = null;
+        } else {
+            // TODO: Throw NullPointerException
         }
     }
 
-    private void findSimpleNUmbers() {
-        int spe_start = -1; // The index of '=' mark
-        boolean isTouched = false;
-
-        for(int i = 0; i < str.length(); i++) {
-            if((i + 1) < str.length() && Character.isDigit(str.charAt(i)) && !Character.isDigit(str.charAt(i + 1))) {
-                if((i - 1) >= 0 && !Character.isDigit(str.charAt(i - 1)) && str.charAt(i - 1) != '^' || i == 0) {
-                    nums.add((Character.toString(str.charAt(i))));
-
-                    if((i + 2) < str.length() && Character.isLetter(str.charAt(i + 1)) && str.charAt(i + 2) != '^' || (i + 2) >= str.length() && Character.isLetter(str.charAt(i + 1))) {
-                        nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1))));
-
-                        if(i > spe_start && spe_start != -1) {
-                            nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))))));
-                        }
-                    } else if((i + 3) < str.length() && str.charAt(i + 2) == '^' && str.charAt(i + 3) == '2') {
-                        nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3))));
-
-                        if(i > spe_start && spe_start != -1) {
-                            nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))))));
-                        }
-
-                        System.out.println(nums);
-                    } else {
-                        if(i > spe_start && spe_start != -1) {
-                            nums.set(nums.indexOf((Character.toString(str.charAt(i)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)))))));
-                        }
-                    }
-
-                    isTouched = true;
-                }
-            } else if((i + 1) >= str.length() && (i - 1) >= 0 && str.charAt(i - 1) == ' ' && Character.isDigit(str.charAt(i))) {
-                if((i + 2) < str.length() && Character.isLetter(str.charAt(i + 1)) && (i + 2) >= str.length()) {
-                    nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1))));
-
-                    if(i > spe_start && spe_start != -1) {
-                        nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)))))));
-                    }
-                } else if((i + 3) < str.length() && str.charAt(i + 2) == '^' && str.charAt(i + 3) == '2') {
-                    nums.set(nums.indexOf(Character.toString(str.charAt(i))), (Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3))));
-
-                    if(i > spe_start && spe_start != -1) {
-                        nums.set(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)) + Character.toString(str.charAt(i + 1)) + Character.toString(str.charAt(i + 2)) + Character.toString(str.charAt(i + 3)))))));
-                    }
-                }
-                /**
-                 * May be BUGGY !!!
-                 */
-                else {
-                    nums.add(Character.toString(str.charAt(i)));
-
-                    if(i > spe_start && spe_start != -1) {
-                        nums.set(nums.indexOf((Character.toString(str.charAt(i)))), ("-" + nums.get(nums.indexOf((Character.toString(str.charAt(i)))))));
-                    }
-                }
-
-                isTouched = true;
-            } else {
-                if(str.charAt(i) == '=') {
-                    spe_start = i;
-                }
+    /**
+     * Determines if the given string contains any letter.
+     * @param str
+     *        The source string line we check tokens from.
+     * @return
+     *        true - contains,
+     *        false - does not contain.
+     */
+    private boolean hasLetter(String str) {
+        for(Character element : str.toCharArray()) {
+            if(Character.isLetter(element)) {
+                return true;
             }
         }
 
-        for(String element : nums) {
-            for(int i = 0; i < element.length(); i++) {
-                if(Character.isLetter(element.charAt(i))) {
-                    unknownMems.add(element);
-                }
-            }
-        }
-
-        nums.removeAll(unknownMems);
-
-        for(String element : nums) {
-            knownMems.add(Integer.parseInt(element));
-        }
-
-        if(isTouched) {
-            for(String element : unknownMems) {
-                if(isNegative(element)) {
-                    unknownMems.set(unknownMems.indexOf(element), "-" + unknownMems.get(unknownMems.indexOf(element)));
-                }
-            }
-
-
-            for(int digit : knownMems) {
-                if(isNegative(Integer.toString(digit))) {
-                    knownMems.set(knownMems.indexOf(digit), (-1) * knownMems.get(knownMems.indexOf(digit)));
-                }
-            }
-        }
-
-        nums.clear();
+        return false;
     }
 
-    private boolean isKnownMems(String region) {
-        for(int i = 0; i < region.length(); i++) {
-            if(Character.isLetter(region.charAt(i))) {
-                return false; // i.e. unknown mems
+    /**
+     * Determines if the given string is a number.
+     * @param str
+     *        The source string line we check tokens from.
+     * @return
+     *        true - is a number,
+     *        false - is not a number.
+     */
+    private boolean isNumber(String str) {
+        for(Character element : str.toCharArray()) {
+            if(Character.isAlphabetic(element)) {
+                return false;
             }
         }
 
         return true;
     }
 
-    private int iterationsCountOnRegion(String region) {
-        int result = 0;
-        if(isKnownMems(region)) {
-            for(int i = 0; i < knownMems.size(); i++) {
-                for(int j = 0; j < knownMems.size(); j++) {
-                    if(knownMems.get(i) == knownMems.get(j) && knownMems.get(i) == Integer.parseInt(region)) {
-                        result++;
-                    }
-                }
-            }
-        } else {
-            for(int i = 0; i < unknownMems.size(); i++) {
-                for(int j = 0; j < unknownMems.size(); j++) {
-                    if(unknownMems.get(i).equals(unknownMems.get(j)) && unknownMems.get(i).equals(region)) {
-                        result++;
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private boolean isNegative(String region) {
-        boolean status = false;
-
-        for(int i = str.indexOf(region); i >= 0; i--) {
-            if(i < str.length() && str.charAt(i) == '-') {
-                status =  true;
-                break;
-            } else if(i < str.length() && str.charAt(i) == '+') {
-                status = false;
-                break;
-            }
-        }
-
-        if(iterationsCountOnRegion(region) > 1) {
-            region = region.replace("^2", "");
-            str = str.replaceFirst(region, "");
-        }
-
-        return status;
-    }
-
     /**
-     * A prototype
+     * Determines if there is the common unknown character in all tokens with a letter.
+     * @param unknownTokens
+     *        The list with all tokens containing a letter.
+     * @return
+     *        true - in all the tokens the common unknown character is the same.
+     *        Identify the common unknown character. (E.g. X or Y)
      */
-    private void optimize() {
-        optimizeKnownMems();
-        optimizeUnknownMems();
-    }
+    private boolean isCommonUnknownCharMatched(ArrayList<String> unknownTokens) {
+        if(unknownTokens.size() == 1) return true;
 
-    private void optimizeKnownMems() {
-        if(!knownMems.isEmpty() && knownMems.size() > 1) {
-            int result = knownMems.get(0);
-            for(int i = 0; i < knownMems.size(); i++) {
-                if((i + 1) < knownMems.size()) {
-                    result += knownMems.get(i + 1);
-                }
-            }
+        char common = ' ';
+        char previous = ' ';
 
-            knownMems.clear();
-            knownMems.add(result);
-        }
-    }
-
-    private void optimizeUnknownMems() {
-        if(!unknownMems.isEmpty() && unknownMems.size() > 1) {
-            boolean status = true;
-            String commonChar = "";
-            String tmp = "";
-
-            for(String element : unknownMems) {
-                for(int i = 0; i < element.length(); i++) {
-                   if((i + 2) < element.length() && Character.isLetter(element.charAt(i)) && element.charAt(i + 1) == '^' && element.charAt(i + 2) == '2') { /** a standard quadratic form */
-                        tmp = commonChar;
-                        commonChar = Character.toString(element.charAt(i));
-                    } else if(Character.isLetter(element.charAt(i))) {
-                        tmp = commonChar;
-                        commonChar = Character.toString(element.charAt(i));
-
-                        if(!tmp.equals("") && !tmp.equals(commonChar)) {
-                            status = false;
-                        }
+        for(int i = 0; i < unknownTokens.size(); i++) {
+            for(int j = 0; j < unknownTokens.get(i).length(); j++) {
+                if(Character.isLetter(unknownTokens.get(i).charAt(j))) {
+                    if(common == ' ') {
+                        common = unknownTokens.get(i).charAt(j);
+                        previous = common;
+                    } else if(previous == common) {
+                        common = unknownTokens.get(i).charAt(j);
+                    } else if(common != ' ' && previous != common) {
+                        return false;
                     }
                 }
             }
-
-            if(status) {
-                for(int i = 0; i < unknownMems.size(); i++) {
-                    for(int j = 0; j < unknownMems.get(i).length(); j++) {
-                        if((j + 2) < unknownMems.get(i).length()  && unknownMems.get(i).charAt(j + 1) == '^' && unknownMems.get(i).charAt(j + 2) == '2') { /** a standard quadratic form */
-                            unknownMems.set(i, unknownMems.get(i).replace(commonChar + "^2", ""));
-                            quadraticMems.add(unknownMems.get(i));
-                        } else if((j + 1) >= unknownMems.get(i).length() && Character.isLetter(unknownMems.get(i).charAt(j)) && Character.isDigit(unknownMems.get(i).charAt(j - 1))) {
-                            unknownMems.set(i, unknownMems.get(i).replace(commonChar, ""));
-                        }
-                    }
-                }
-
-                // To remove all iterated elements
-                prepareUnknownMems();
-
-                optimizeQuadraticMems(commonChar);
-
-                if(unknownMems.size() > 0) {
-                    // Unknown mems optimization
-                    int result = Integer.parseInt(unknownMems.get(0));
-                    for(int i = 0; i < unknownMems.size(); i++) {
-                        if((i + 1) < unknownMems.size()) {
-                            result += Integer.parseInt(unknownMems.get(i + 1));
-                        }
-                    }
-
-                    unknownMems.clear();
-                    unknownMems.add(Integer.toString(result) + commonChar);
-                }
-
-                //unknownMems.addAll(quadraticMems);
-                //quadraticMems.clear();
-            } else {
-                System.out.println("Failed to load unknown mems ...");
-            }
-        }
-    }
-
-    private void optimizeQuadraticMems(String commonChar) {
-        if(!quadraticMems.isEmpty() && quadraticMems.size() > 1) {
-            int result = Integer.parseInt(quadraticMems.get(0));
-            for(int i = 0; i < quadraticMems.size(); i++) {
-                if((i + 1) < quadraticMems.size()) {
-                    result += Integer.parseInt(quadraticMems.get(i + 1));
-                }
-            }
-
-            quadraticMems.clear();
-            quadraticMems.add(Integer.toString(result) + commonChar + "^2");
-        } else if(!quadraticMems.isEmpty()) {
-            quadraticMems.set(0, quadraticMems.get(0) + commonChar + "^2");
-        }
-    }
-
-    private void prepareUnknownMems() {
-        ArrayList<String> copy = new ArrayList<String>();
-        ArrayList<Integer> indexesToRemove = new ArrayList<Integer>();
-
-        copy.addAll(quadraticMems);
-
-        for(int i = 0; i < unknownMems.size(); i++) {
-            for(int j = 0; j < copy.size(); j++) {
-                if(unknownMems.get(i).equals(copy.get(j))) {
-                    indexesToRemove.add(i);
-                }
-            }
         }
 
-        for(int i = (indexesToRemove.size() - 1); i >= 0; i--) {
-            if(indexesToRemove.get(i) < unknownMems.size()) {
-                unknownMems.remove(unknownMems.get(indexesToRemove.get(i)));
-            }
-        }
+        this.common = common;
 
-        copy = null;
-        indexesToRemove = null;
-    }
-
-    private void separateQuadraticMems() {
-        if(!unknownMems.isEmpty()) {
-            for(String element : unknownMems) {
-                if(element.contains("^2")) {
-                    quadraticMems.add(element);
-                }
-            }
-
-            unknownMems.removeAll(quadraticMems);
-        }
-    }
-
-    private void prepareString() {
-        final StringTokenIterator iterator = new StringTokenIterator(str, " ");
-
-        while(iterator.hasNext() || iterator.currentEnd() == str.length()) {
-            if(!Character.isDigit(iterator.current().charAt(0)) && Character.isAlphabetic(iterator.current().charAt(0))) {
-                str = str.replace(str.subSequence(iterator.currentStart(), iterator.currentEnd()), "1" + str.subSequence(iterator.currentStart(), iterator.currentEnd()));
-            }
-
-            if(iterator.currentEnd() == str.length()) {
-                break;
-            }
-
-            iterator.setStart(iterator.currentEnd() + 1);
-        }
+        return true;
     }
 }
